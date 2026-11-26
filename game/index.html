@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Golden Ridge Air — Kestrel Valley Flights</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1a2436;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; color: #fff; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .panel { position: absolute; background: rgba(8, 18, 34, 0.72); border: 2px solid rgba(255, 210, 110, 0.55);
+    border-radius: 10px; padding: 8px 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.45); }
+  .label { font-size: 12px; letter-spacing: 2px; color: #ffd26e; font-weight: 700; }
+  .big { font-size: 34px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .unit { font-size: 13px; color: #cfe3ff; font-weight: 600; }
+  #hud-mission { top: 12px; left: 12px; min-width: 300px; }
+  #hud-mission .mname { font-size: 21px; font-weight: 800; }
+  #hud-mission .mobj { font-size: 15px; color: #eaf2ff; margin-top: 2px; }
+  #hud-mission .mprog { font-size: 15px; font-weight: 700; color: #9fe8a8; margin-top: 2px; }
+  #stagebar { height: 10px; background: #22344f; border-radius: 5px; margin-top: 6px; overflow: hidden; }
+  #stagefill { height: 100%; width: 0%; background: linear-gradient(90deg, #ffd26e, #7ee787); }
+  #hud-compass { top: 12px; left: 50%; transform: translateX(-50%); text-align: center; min-width: 340px; }
+  #compass-strip { font-size: 17px; font-weight: 700; letter-spacing: 3px; color: #eaf2ff; margin-top: 2px; }
+  #compass-strip .tick { color: #ffd26e; }
+  #hud-score { top: 12px; right: 12px; text-align: right; min-width: 210px; }
+  #hud-score .big { font-size: 30px; }
+  #hud-gauges { left: 12px; bottom: 12px; min-width: 250px; }
+  .bar { height: 14px; background: #22344f; border-radius: 7px; overflow: hidden; margin: 3px 0 7px; }
+  .bar > div { height: 100%; }
+  #fuel-fill { background: #ffb340; width: 100%; }
+  #dmg-fill { background: #7ee787; width: 0%; }
+  #thr-fill { background: #58b7ff; width: 60%; }
+  .barlabel { display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; }
+  #hud-flight { left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; gap: 26px; text-align: center; }
+  #hud-flight .big { font-size: 40px; }
+  #hud-map { right: 12px; bottom: 12px; text-align: center; }
+  #minimap { display: block; border-radius: 6px; background: #0d1a2c; }
+  #hud-warn { left: 50%; top: 96px; transform: translateX(-50%); border-color: #ff5d5d; color: #ffd7d7;
+    font-size: 18px; font-weight: 800; display: none; padding: 6px 18px; }
+  #toast { position: absolute; left: 50%; bottom: 132px; transform: translateX(-50%); font-size: 19px; font-weight: 800;
+    color: #ffe9a8; background: rgba(8, 18, 34, 0.82); border: 2px solid #ffd26e; border-radius: 10px;
+    padding: 8px 20px; display: none; white-space: nowrap; }
+  #help { left: 12px; top: 50%; transform: translateY(-50%); font-size: 13px; line-height: 1.7; max-width: 190px; }
+  #help b { color: #ffd26e; }
+  .screen { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(6, 14, 28, 0.55); }
+  .screen .card { background: rgba(8, 20, 38, 0.92); border: 3px solid #ffd26e; border-radius: 14px;
+    padding: 26px 34px; max-width: 860px; width: 88%; box-shadow: 0 8px 40px rgba(0,0,0,0.6); }
+  .screen h1 { margin: 0; font-size: 52px; letter-spacing: 1px; color: #ffd26e; }
+  .screen h2 { margin: 0 0 10px; font-size: 30px; color: #ffd26e; }
+  .screen .sub { font-size: 19px; color: #dbe9ff; margin: 6px 0 14px; }
+  .counts { display: flex; gap: 18px; margin: 14px 0; flex-wrap: wrap; }
+  .counts .c { background: #12263f; border: 2px solid #3a5a80; border-radius: 10px; padding: 8px 14px; text-align: center; }
+  .counts .c .n { font-size: 34px; font-weight: 800; color: #ffd26e; }
+  .counts .c .t { font-size: 12px; letter-spacing: 1px; color: #cfe3ff; font-weight: 700; }
+  .mlist { font-size: 16px; line-height: 1.9; }
+  .mlist .done { color: #7ee787; font-weight: 700; }
+  .mlist .cur { color: #ffd26e; font-weight: 700; }
+  .mlist .lock { color: #9db4d4; }
+  .btn { display: inline-block; background: #ffd26e; color: #12203a; font-weight: 800; font-size: 18px;
+    border: none; border-radius: 9px; padding: 10px 22px; margin: 6px 8px 0 0; cursor: pointer; }
+  .btn.ghost { background: transparent; color: #ffd26e; border: 2px solid #ffd26e; }
+  .keys { font-size: 14px; color: #cfe3ff; line-height: 1.8; margin-top: 12px; }
+  .keys b { color: #fff; background: #22344f; border-radius: 4px; padding: 1px 7px; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="Golden Ridge Air: fly the Kestrel over Kestrel Valley"></canvas>
+
+<div id="hud-mission" class="panel">
+  <div class="label">MISSION 1 OF 3</div>
+  <div class="mname" id="mission-name">RING RUN</div>
+  <div class="mobj" id="mission-obj">Fly through all 12 golden rings</div>
+  <div class="mprog" id="mission-prog">RINGS 0 / 8</div>
+  <div id="stagebar"><div id="stagefill"></div></div>
+  <div class="mobj" id="mission-next" style="color:#ffd26e">NEXT: Ring 1 — over Ridgefield runway</div>
+</div>
+
+<div id="hud-compass" class="panel">
+  <div class="label">HEADING <span id="heading-deg" style="color:#fff;font-size:18px">090&deg;</span></div>
+  <div id="compass-strip">N &nbsp; 030 &nbsp; 060 &nbsp; <span class="tick">&#9650; E 090</span> &nbsp; 120 &nbsp; 150 &nbsp; S</div>
+</div>
+
+<div id="hud-score" class="panel">
+  <div class="label">SCORE</div>
+  <div class="big" id="score">0</div>
+  <div class="label" style="margin-top:4px">TIME <span id="clock" style="color:#fff;font-size:16px">00:00</span> &nbsp; WIND <span id="wind" style="color:#fff;font-size:16px">12 KT W</span></div>
+</div>
+
+<div id="hud-gauges" class="panel">
+  <div class="barlabel"><span>THROTTLE</span><span id="thr-pct">60%</span></div>
+  <div class="bar"><div id="thr-fill"></div></div>
+  <div class="barlabel"><span>FUEL</span><span id="fuel-pct">100%</span></div>
+  <div class="bar"><div id="fuel-fill"></div></div>
+  <div class="barlabel"><span>AIRFRAME</span><span id="dmg-pct">100%</span></div>
+  <div class="bar"><div id="dmg-fill"></div></div>
+  <div style="font-size:13px;color:#cfe3ff">AIRCRAFT <b id="craft-name" style="color:#ffd26e">KESTREL K-2 SWIFT</b></div>
+</div>
+
+<div id="hud-flight" class="panel">
+  <div><div class="label">SPEED</div><div class="big" id="speed">0</div><div class="unit">KNOTS</div></div>
+  <div><div class="label">ALTITUDE</div><div class="big" id="alt">0</div><div class="unit">FEET</div></div>
+  <div><div class="label">VERT SPEED</div><div class="big" id="vspeed" style="font-size:30px">+0</div><div class="unit">FT/MIN</div></div>
+</div>
+
+<div id="hud-map" class="panel">
+  <div class="label">KESTREL VALLEY &mdash; MAP</div>
+  <canvas id="minimap" width="220" height="150"></canvas>
+  <div style="font-size:12px;color:#cfe3ff;margin-top:3px">4 AIRFIELDS &bull; 18 RINGS &bull; GOLD ARROW = YOU</div>
+</div>
+
+<div id="hud-warn" class="panel">LOW FUEL &mdash; HEAD FOR AN AIRFIELD</div>
+<div id="toast"></div>
+
+<div id="help" class="panel">
+  <div class="label">CONTROLS</div>
+  <b>W / S</b> throttle up / down<br>
+  <b>UP / DOWN</b> pitch down / up<br>
+  <b>LEFT / RIGHT</b> bank &amp; turn<br>
+  <b>A / D</b> rudder<br>
+  <b>F</b> flaps &nbsp; <b>G</b> gear<br>
+  <b>C</b> camera &nbsp; <b>M</b> missions<br>
+  <b>P</b> pause &nbsp; <b>R</b> restart<br>
+  <b>1 / 2 / 3</b> pick mission
+</div>
+
+<div id="title-screen" class="screen">
+  <div class="card">
+    <h1>GOLDEN RIDGE AIR</h1>
+    <div class="sub">Kestrel Valley Flights &mdash; 3 missions, 18 rings, 4 airfields, 3 aircraft. Fly the golden hour, mind your fuel, land it like you mean it.</div>
+    <div class="counts">
+      <div class="c"><div class="n">3</div><div class="t">MISSIONS</div></div>
+      <div class="c"><div class="n">18</div><div class="t">RINGS</div></div>
+      <div class="c"><div class="n">4</div><div class="t">AIRFIELDS</div></div>
+      <div class="c"><div class="n">3</div><div class="t">AIRCRAFT</div></div>
+      <div class="c"><div class="n">3</div><div class="t">BEACONS</div></div>
+      <div class="c"><div class="n">3</div><div class="t">SKY MODES</div></div>
+    </div>
+    <div class="mlist">
+      <div><span class="cur">&#9656; 1 &mdash; RING RUN</span> &mdash; thread 12 golden rings over the valley</div>
+      <div><span class="lock">2 &mdash; ISLAND HOP</span> &mdash; land the Kestrel on Lakeshore runway</div>
+      <div><span class="lock">3 &mdash; RIDGE RESCUE</span> &mdash; reach 3 beacons, then land at Ridgefield</div>
+    </div>
+    <div style="margin-top:14px">
+      <button class="btn" id="btn-fly">FLY MISSION 1</button>
+      <button class="btn ghost" id="btn-log">PILOT LOG &amp; HANGAR</button>
+      <button class="btn ghost" id="btn-craft">AIRCRAFT: K-2 SWIFT</button>
+    </div>
+    <div class="keys"><b>W/S</b> throttle &nbsp; <b>Arrows</b> pitch &amp; bank &nbsp; <b>A/D</b> rudder &nbsp; <b>F</b> flaps &nbsp; <b>G</b> gear &nbsp; <b>C</b> camera &nbsp; <b>M</b> missions &nbsp; <b>Enter</b> fly</div>
+  </div>
+</div>
+
+<div id="log-screen" class="screen">
+  <div class="card">
+    <h2>PILOT LOG &amp; HANGAR</h2>
+    <div class="sub">Everything in Golden Ridge Air, counted honestly from the game itself.</div>
+    <div class="counts">
+      <div class="c"><div class="n">3</div><div class="t">MISSIONS</div></div>
+      <div class="c"><div class="n">18</div><div class="t">RINGS</div></div>
+      <div class="c"><div class="n">4</div><div class="t">AIRFIELDS</div></div>
+      <div class="c"><div class="n">3</div><div class="t">AIRCRAFT</div></div>
+      <div class="c"><div class="n">3</div><div class="t">BEACONS</div></div>
+      <div class="c"><div class="n">5,200</div><div class="t">FT PEAK</div></div>
+    </div>
+    <div class="mlist" id="log-missions"></div>
+    <div class="sub" id="log-sortie" style="margin-top:10px"></div>
+    <div class="sub">AIRCRAFT &mdash; K-2 SWIFT (balanced) &bull; K-4 HAULER (slow, huge tank) &bull; K-7 DART (fast, thirsty). Pick on the title screen.</div>
+    <div style="margin-top:8px"><button class="btn" id="btn-log-close">BACK TO FLYING</button></div>
+  </div>
+</div>
+
+<div id="end-screen" class="screen">
+  <div class="card" style="text-align:center">
+    <h2 id="end-title">MISSION COMPLETE</h2>
+    <div class="sub" id="end-text"></div>
+    <div class="counts" id="end-counts" style="justify-content:center"></div>
+    <div><button class="btn" id="btn-again">FLY AGAIN (R)</button>
+    <button class="btn ghost" id="btn-next">NEXT MISSION</button></div>
+  </div>
+</div>
+
+<p id="status" role="status" aria-live="polite"></p>
+<script src="./vendor/three.min.js"></script>
+<script src="./src/flight-model.js"></script>
+<script src="./src/terrain.js"></script>
+<script src="./src/aircraft.js"></script>
+<script src="./src/missions.js"></script>
+<script src="./src/hud.js"></script>
+<script src="./src/camera.js"></script>
+<script src="./src/audio.js"></script>
+<script src="./src/save.js"></script>
+<script src="./src/shot-presets.js"></script>
+<script src="./src/main.js"></script>
+</body>
+</html>
