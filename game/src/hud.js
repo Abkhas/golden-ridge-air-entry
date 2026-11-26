@@ -117,4 +117,13 @@ function showToast(text, ms) {
 function showScreen(id) {
   for (const s of ['title-screen', 'log-screen', 'end-screen']) hudEl(s).style.display = 'none';
   if (id) hudEl(id).style.display = 'flex';
+  // The log card spans most of the frame and would cut the HUD panels at the
+  // left and right edges mid-line (the mission NEXT line, the map label, the
+  // gauge percentages, the help lines). Hide those panels while the log is
+  // open; they come back when it closes. Panels the card never touches
+  // (compass, score, flight) stay visible behind the modal.
+  const logOpen = id === 'log-screen';
+  for (const p of ['hud-mission', 'hud-map', 'hud-gauges', 'help']) {
+    hudEl(p).style.display = logOpen ? 'none' : '';
+  }
 }

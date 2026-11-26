@@ -25,8 +25,14 @@ function ridgeHeight(x, z) {
   h += Math.max(0, 1 - dist / 2400) * -160;                   // central valley floor
   for (const f of VALLEY.airfields) {
     const d = Math.hypot(x - f.x, z - f.z);
-    const flat = Math.max(0, 1 - d / 420);
-    h = h * (1 - flat) + 26 * flat;                           // flat pad at 26 ft
+    // A real pad: flat at 26 ft out to the end of the strip (310 ft + margin),
+    // then eased back to the raw terrain by 700 ft. The old linear blend over
+    // 420 ft never actually flattened anything — the raw mountain leaked through
+    // (46 ft at the strip centre, hundreds of feet at its ends) and buried the
+    // runway strip and the lake disc under the terrain, so neither could ever
+    // be seen from the air. The pad is what the strip (28.5 ft) is built on.
+    const flat = d <= 340 ? 1 : Math.max(0, 1 - (d - 340) / 360);
+    h = h * (1 - flat) + 26 * flat;
   }
   return Math.max(-40, h);
 }
@@ -59,12 +65,15 @@ function buildTerrain(scene, skyMode) {
   const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }));
   group.add(ground);
 
-  // Lake: a still blue disc in the west valley.
+  // Lake: a still blue disc in the west valley. It sits 1 ft above the 26-ft
+  // airfield pad, so the water reads around the runway causeway instead of
+  // lying buried under the terrain (the old y=4 put the whole disc below the
+  // pad). The shoreline is wherever the rising valley sides cross the water.
   const lake = new THREE.Mesh(
     new THREE.CircleGeometry(620, 40),
     new THREE.MeshLambertMaterial({ color: 0x3f7fb8, transparent: true, opacity: 0.92 }));
   lake.rotation.x = -Math.PI / 2;
-  lake.position.set(-1450, 4, -900);
+  lake.position.set(-1450, 27, -900);
   group.add(lake);
 
   // River ribbon from the north ridge to the lake.
